@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mocafelab.api.sg.SgMapper">
+	<!-- 종료날짜가 지난 CPP 광고 개수 -->
+	<select id="getEndCppCnt" parameterType="HashMap" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			public.dsp_sg_manager
+		WHERE
+			id IN (
+				SELECT
+					dsm.id 
+				FROM
+					public.dsp_sg_manager dsm 
+				JOIN public.dsp_campaign dc 
+				ON dsm.campaign_id = dc.id and dc.pay_type = 'CPP' 
+				WHERE 
+					dsm.status = 1
+					AND dsm.end_ymd <![CDATA[ < ]]> TO_CHAR(NOW(), 'YYYY-MM-DD')
+			)	
+	</select>
+	<!-- 종료날짜가 지난 CPP 광고 상태 변경 -->
+	<update id="modifyCppStatusEnd" parameterType="HashMap">
+		UPDATE
+			public.dsp_sg_manager dsm
+		SET
+			  status = 8
+			, display_end_date = (SELECT event_date FROM traffic.ad_event_log ael WHERE ael.sg_id = dsm.id ORDER BY ael.id DESC LIMIT 1)
+		WHERE
+			id IN (
+				SELECT
+					dsm.id 
+				FROM
+					public.dsp_sg_manager dsm 
+				JOIN public.dsp_campaign dc 
+				ON dsm.campaign_id = dc.id and dc.pay_type = 'CPP' 
+				WHERE 
+					dsm.status = 1
+					AND dsm.end_ymd <![CDATA[ < ]]> TO_CHAR(NOW(), 'YYYY-MM-DD')
+			)	
+	</update>
+	
+	<!-- 광고 신청 후 익일까지 미입금 개수 -->
+	<select id="getNotPaidSgCnt" parameterType="HashMap" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			public.dsp_sg_manager dsm 
+		WHERE
+			status = 0
+			AND pay_status_code = 'PAY_WAIT'
+			AND TO_CHAR((request_date + '2 day'::interval), 'YYYY-MM-DD') <![CDATA[ <= ]]> TO_CHAR(NOW(), 'YYYY-MM-DD')
+	</select>
+	
+	<!-- 입금 완료 후 광고 시작일 까지 미승인된 개수 -->
+	<select id="getPaidSgAndNotApprovalCnt" parameterType="HashMap" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			public.dsp_sg_manager dsm 
+		WHERE
+			status = 0
+			AND pay_status_code = 'PAY_COMPLETE'
+			AND start_ymd  <![CDATA[ <= ]]> TO_CHAR(NOW(), 'YYYY-MM-DD')
+	</select>
+	
+	<!-- 광고 승인 거부 -->
+	<update id="modifySgStatusRejection" parameterType="HashMap">
+		UPDATE
+			public.dsp_sg_manager
+		SET
+			  status = 9
+			, reject_reason = #{reject_reason}
+			, approve_date = NOW()
+			<if test='pay_status_code != null and pay_status_code != ""'>
+				, pay_status_code = #{pay_status_code}
+			</if>
+		<where>
+			status = 0
+			<choose>
+				<when test='reject_type != null and reject_type == "notPaid"'>
+					AND pay_status_code = 'PAY_WAIT'
+					AND TO_CHAR((request_date + '2 day'::interval), 'YYYY-MM-DD') <![CDATA[ <= ]]> TO_CHAR(NOW(), 'YYYY-MM-DD')
+				</when>
+				<otherwise>
+					AND pay_status_code = 'PAY_COMPLETE'
+					AND start_ymd <![CDATA[ <= ]]> TO_CHAR(NOW(), 'YYYY-MM-DD')
+				</otherwise>
+			</choose>
+		</where>
+	</update>
+	
+	<!-- 배치 모니터 업데이트 -->
+	<update id="modifyBatchMonitor" parameterType="HashMap">
+		UPDATE
+			public.batch_monitor
+		SET
+			  result = #{result}
+			, result_message = #{result_message}
+			, execute_date = NOW()
+			<if test='last_index != null and last_index != ""'>
+			, last_index = #{last_index}
+			</if>
+		WHERE
+			batch_code = #{batch_code}
+	</update>
+</mapper>

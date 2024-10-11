@@ -1,0 +1,45 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:include="_api/header :: top"></head>
+  <body>
+    <div th:replace="_api/header :: nav"></div>
+    <div class="container">
+		<center>
+			암호화 문자열 : <input type="text" name="encText" size="100px">
+			<BR/> &rArr; <button type="button" onclick="decode();">복호화</button> &rArr; <BR/>
+			복호화 문자열 : <input type="text" name="decText" size="100px">
+			
+			<BR/><BR/><BR/><BR/>
+			
+			복호화 문자열 : <input type="text" name="decText2" size="100px">
+			<BR/> &rArr; <button type="button" onclick="encode();">암호화</button> &rArr; <BR/>
+			암호화 문자열 : <input type="text" name="encText2" size="100px">
+		</center>
+	</div>	
+	<script type="text/javascript">
+		function encode(){
+			var str = document.querySelector("[name=decText2]").value; 
+			str = str.trim();
+			var decTextObj = document.querySelector("[name=encText2]");
+			decTextObj.value = AES_Encode(str);
+		}
+		
+		function decode(){
+			var str = document.querySelector("[name=encText]").value; 
+			str = str.trim();
+			//alert(str+"\r\n"+decodeURIComponent(str));
+			var decTextObj = document.querySelector("[name=decText]");
+			decTextObj.value = AES_Decode(str);
+		}
+		function login(){
+	        var id = "newfrom"; 
+	        var pw = "12345678"; 
+	        
+	        // id, password 암호화
+	        AES_Encode(id);
+	        AES_Encode(pw);
+	    }
+		login();
+	</script>
+  </body>
+</html>

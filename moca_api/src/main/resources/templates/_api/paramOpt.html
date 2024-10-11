@@ -1,0 +1,175 @@
+<html xmlns:th="http://www.thymeleaf.org">
+	    <div class="container" id="container">
+	    	<div class="row opt">
+	    		<div class="col-md-6">
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    Api URL<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="API에서 사용할 URL을 입력합니다."><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="text" id="apiUrl" class="form-control input-sm" placeholder="Input Your Site URL." value="">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                  APP_KEY<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="Api key "><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		              </div>
+		              <div class="col-md-8">
+		                  <input type="hidden" id="app_key" value="app-key">
+		                  <input type="text" class="form-control input-sm" placeholder="value" id="app_key_value" value="">
+	              		</div>
+             		</div>
+	    		</div>
+	    		<div class="col-md-6">
+	               	<div class="row">
+		                <div class="col-md-4 text-right">
+		                    SELECT MODE<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="Select Your Mode! (WEB/Non WEB) "><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="radio" class="form-control2" style="height:15px;" name="mode" id="mode_web"  checked="checked"> <label for="mode_web">Web</label>
+		                    <input type="radio" class="form-control2" style="height:15px;" name="mode" id="mode_nonweb"> <label for="mode_nonweb">Non Web</label>
+		                </div>
+	                </div>
+	               	<div class="row">
+		                <div class="col-md-4 text-right">
+		                    package-name<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="패키지명"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+	               		<div class="col-md-8">
+		                    <input type="hidden" id="package_name" value="package-name">
+		                    <input type="text" class="form-control input-sm" placeholder="value" id="package_name_value" value="com.mocafelab">
+	               		</div>
+	              	</div>
+	    		</div>
+	    	</div>
+	    	<div class="row non-web-opt opt" style="display:none;">
+				<div class="col-md-6">
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    session-id<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="non-web 일때, 세션 아이디"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="sessionId" value="session-id">
+		                    <input type="text" class="form-control input-sm" placeholder="non-web 일때, 세션 아이디" id="sessionId_value" value="session-id">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-uuid<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="non-web 일때, 디바이스 uuid"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceUuid" value="device-uuid">
+		                    <input type="text" class="form-control input-sm" placeholder="non-web 일때, 디바이스 uuid" id="deviceUuid_value" value="device-uuid">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-model<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="non-web 일때, 디바이스 모델"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceModel" value="device-model">
+		                    <input type="text" class="form-control input-sm" placeholder="모델명" id="deviceModel_value" value="device-model">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-os<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="non-web 일때, 디바이스 os"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceOs" value="device-os">
+		                    <input type="text" class="form-control input-sm" placeholder="A:Android, I:iOS" id="deviceOs_value" value="A">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-token<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="non-web 일때, 디바이스 토큰"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceToken" value="device-token">
+		                    <input type="text" class="form-control input-sm" placeholder="디바이스의 토큰값" id="deviceToken_value" value="device-token">
+		                </div>
+			        </div>
+		        </div>
+				        
+				<div class="col-md-6">
+			        <div class="row" style="display:none;">
+		                <div class="col-md-4 text-right">
+		                    RX-Consumer-Key<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="Api key header with api consumer key (key) and api consumer key value (value) "><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="consumerKey_key" value="RX-Consumer-Key">
+		                    <input type="text" class="form-control input-sm" readonly placeholder="value" id="consumerKey_value" value="tGUEk7dmkX6nybTfmOuYKdZdDUq/XZQBzRJAfsp2Oko=">
+		                </div>
+			        </div>
+			        <div class="row" style="display:none;">
+		                <div class="col-md-4 text-right">
+		                    RX-Consumer-Secret<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="Api key header with api consumer secret code (key) and api consumer secret code value (value) "><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="consumerSec_key" value="RX-Consumer-Secret">
+		                    <input type="text" class="form-control input-sm" readonly placeholder="value" id="consumerSec_value" value="DPdfBmR5VGjLXyl4RKYm/bexoPTNzBErXAOn3aOuz0w=">
+		                </div>
+			        </div>
+					<div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-ver<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="디바이스 버전"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceVersion" value="device-ver">
+		                    <input type="text" class="form-control input-sm" placeholder="디바이스의 운영체제 버전" id="deviceVer_value" value="16">
+		                </div>
+			        </div>
+					<div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-appver<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="디바이스 앱버전"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceAppver" value="device-appver">
+		                    <input type="text" class="form-control input-sm" placeholder="앱의 버전" id="deviceAppver_value" value="1.0.0">
+		                </div>
+			        </div>
+					<div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-langcode<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="디바이스 언어코드"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceLangcode" value="device-langcode">
+		                    <input type="text" class="form-control input-sm" placeholder="디바이스의 언어" id="deviceLangcode_value" value="ko">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-countrycode<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="디바이스 국가코드"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceCountrycode" value="device-countrycode">
+		                    <input type="text" class="form-control input-sm" placeholder="디바이스 국가코드" id="deviceCountrycode_value" value="KR">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    device-timezone<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="디바이스 국제시간"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceTimezone" value="device-timezone">
+		                    <input type="text" class="form-control input-sm" placeholder="디바이스의 타임존 정보" id="deviceTimezone_value" value="+09:00">
+		                </div>
+			        </div>
+				</div>
+	    	</div>
+	    	
+	    	
+
+			<!-- <div class="row">
+	        	session-id : 자동 로그인 / 세션 인증이 필요한 API 통신시 필요합니다. (로그인이 필요없는 API는 사용하지 않습니다.)<br>
+	        	device-* : 로그인시 해당 값으로 DB에 저장됩니다.<br>
+	        	device-timezone : 타임존 기준으로 시간 값을 반환합니다. 디폴트는 한국시간입니다.<br>
+	        </div> -->
+	        <hr>
+	        <!-- 
+		    <div>
+		    	Data format <br/>
+		    	e=AES256 encode JSON
+		    </div>
+		    -->
+	    </div> 
+</html>

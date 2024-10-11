@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mocafelab.api.demo.DemoApiMapper">
+	
+	<!-- 지역 변경 -->
+	<select id="modifyArea" parameterType="HashMap" resultType="HashMap">
+		UPDATE public.ssp_motor
+		SET
+			cpoint = (SELECT dong_cpoint::point FROM public.area_code WHERE gu_name = #{gu_name} ORDER BY id LIMIT 1)
+			, si_code = (SELECT si_code FROM public.area_code WHERE gu_name = #{gu_name} ORDER BY id LIMIT 1)
+			, gu_code = (SELECT gu_code FROM public.area_code WHERE gu_name = #{gu_name} ORDER BY id LIMIT 1)
+			, dong_code = (SELECT dong_code FROM public.area_code WHERE gu_name = #{gu_name} ORDER BY id LIMIT 1)
+		where
+			id = #{ssp_motor_id}::bigint
+		RETURNING cpoint
+	</select>
+
+	<!-- 차량의 현재 지역 -->
+	<select id="getArea" parameterType="HashMap" resultType="HashMap">
+		SELECT
+			sm.id AS motor_id
+			, sm.car_number
+			, sm.cpoint
+			, ac.gu_name
+			, ac.dong_name
+		FROM 
+			public.ssp_motor sm
+		LEFT JOIN public.area_code ac
+		ON ac.si_code = sm.si_code AND ac.gu_code = sm.gu_code AND ac.dong_code = sm.dong_code
+		WHERE 
+			sm.id = #{ssp_motor_id}::bigint
+	</select>
+	
+	<!-- 차량의 디바이스 리스트 -->
+	<select id="getDeviceList" parameterType="HashMap" resultType="HashMap">
+		SELECT
+			sd.id AS device_id
+			, sd.model_name
+			, sd.serial_number
+			, sd.status
+		FROM	
+			public.ssp_device sd
+		JOIN public.ssp_motor sm
+		ON sm.id = sd.motor_id
+		WHERE
+			sm.id = #{ssp_motor_id}::bigint
+		ORDER BY sd.id DESC
+	</select>
+	
+	<!-- 차량 리스트 -->
+	<select id="getMotorList" parameterType="HashMap" resultType="HashMap">
+		SELECT
+			id AS motor_id
+			, car_number
+		FROM
+			public.ssp_motor
+		WHERE status = '1'
+		ORDER BY id DESC
+	</select>
+	
+</mapper>

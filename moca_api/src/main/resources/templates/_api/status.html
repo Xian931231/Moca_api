@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns:th="http://www.thymeleaf.org">
+	<head th:include="_api/status_header :: top"></head>  
+	<script src="/js/_api/api.js"></script>
+	<script src="/js/_api/status.js"></script>
+	<body>
+		<div th:replace="_api/status_header :: nav"></div>
+		<div class="container" id="container2"  style="width:90%;">
+			<table class="table">
+				<thead>
+					<tr>
+						<th width="5%">NO</th>
+						<th width="15%">1Depth</th>
+						<th width="15%">2Depth</th>
+						<th width="30%">내용</th>
+						<th width="10%">상태</th>
+						<th width="25%" style="display:none;">비고</th>
+					</tr>
+				</thead>
+				<tbody id="progTable" class="table table-striped">
+				</tbody>
+			</table>
+		</div> 
+	</body>
+</html>

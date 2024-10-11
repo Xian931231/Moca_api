@@ -1,0 +1,22 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns:th="http://www.thymeleaf.org">
+	<head th:include="_api/header :: top"></head>
+	<head th:include="_api/header :: defaultScript"></head>
+  	<body>
+    	<div th:replace="_api/header :: nav"></div>
+       	<div class="container" th:replace="_api/paramOpt"></div>
+		<script type="text/javascript">
+			/* function login(){
+		        var id = "newfrom"; 
+		        var pw = "12345678"; 
+		        
+		        // id, password 암호화
+		        AES_Encode(id);
+		        AES_Encode(pw);
+		    }
+			login();
+			var url = window.location.href.replace("/_api", "");
+			document.getElementById("apiUrl").value = url; */
+		</script>
+  	</body>
+</html>

@@ -1,0 +1,1129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mocafelab.api.log.LogMapper">
+	
+	<!-- ad_event_traffic 시연용 데이터 -->
+	<insert id="addTestTrafficData" parameterType="HashMap">
+		INSERT INTO traffic.ad_event_traffic (
+			insert_date 
+			, event_date 
+			, cip 
+			, sg_id 
+			, slot_id 
+			, sg_kind 
+			, api_key 
+			, device 
+			, event_kind 
+			, status 
+			, cpoint 
+			, event_year 
+			, event_month 
+			, event_day 
+			, event_hour 
+			, event_min 
+		) VALUES (
+			now()
+			, now()
+			, #{cip}::inet
+			, #{sg_id}::int
+			, #{slot_id}::int
+			, 'P'
+			, #{api_key}
+			, #{device}
+			, 'DS'
+			, 'C'
+			, POINT(#{longitude}::float, #{latitude}::float)
+			, (SELECT EXTRACT ('year' FROM public.f_str_to_ts(now()::text))::text)
+			, (SELECT LPAD(EXTRACT ('month' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('day' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('hour' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('minute' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+		)			
+	</insert>
+	
+	<select id="getAreaCode" parameterType="HashMap" resultType="HashMap">
+		SELECT
+			si_code
+			, gu_code
+			, dong_code
+		FROM public.area_code ac 
+		WHERE
+			ST_CONTAINS(geo_data, POINT(#{longitude}::float, #{latitude}::float)::geometry);
+	</select>
+	
+	<!-- ad_event_log 시연용 데이터 -->
+	<insert id="addTestEventData" parameterType="HashMap">
+		INSERT INTO traffic.ad_event_log (
+			insert_date
+			, event_date
+			, cip
+			, sg_id
+			, api_key
+			, device
+			, status
+			, cpoint
+			, event_year
+			, event_month
+			, event_day
+			, event_hour
+			, event_min
+			, product_id
+			, slot_id
+			, sg_kind
+			, car_number
+			, log_status
+			, display_time
+			, display_start_date
+			, display_end_date
+			, event_kind
+			, si_code
+			, gu_code
+			, dong_code
+		) VALUES (
+			now()
+			, now()
+			, #{cip}::inet
+			, #{sg_id}::int
+			, #{api_key}
+			, #{device}
+			, 'C'
+			, POINT(#{longitude}::float, #{latitude}::float)
+			, (SELECT EXTRACT ('year' FROM public.f_str_to_ts(now()::text))::text)
+			, (SELECT LPAD(EXTRACT ('month' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('day' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('hour' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('minute' FROM public.f_str_to_ts(now()::text))::text, 2, '0'))
+			, #{product_id}::int
+			, #{slot_id}::int
+			, 'M'
+			, #{car_number}
+			, 'S'
+			, 15
+			, now()
+			, now() + INTERVAL '15 seconds'
+			, 'D'
+			, #{si_code}
+			, #{gu_code}
+			, #{dong_code}
+		)
+	</insert>
+	
+	<select id="getDeviceApiKey" parameterType="HashMap" resultType="HashMap">
+		SELECT
+			sp.api_key
+			, sd.serial_number as device
+			, sp.id as product_id
+		FROM public.ssp_motor sm 
+		JOIN
+			public.ssp_device sd 
+		ON
+			sm.id = sd.motor_id 
+		JOIN
+			public.ssp_product sp 
+		ON
+			sd.product_id = sp.id
+		WHERE
+			sm.car_number = #{car_number}
+		ORDER BY random() LIMIT 1
+	</select>
+
+	<select id="getSgInfo" parameterType="HashMap" resultType="HashMap">
+		SELECT DISTINCT
+			A.sg_id
+			, A.sg_kind
+			, A.material_kind
+			, A.exposure_time
+			, B.slot_id
+			, B.product_id
+			, B.api_key
+			, B.serial_number as device
+		FROM 
+			(
+			SELECT
+				dsm.id as sg_id
+				, CASE WHEN dc.pay_type = 'CPM' THEN
+					CASE WHEN target_area_yn = 'Y' THEN 'A'
+					  	 WHEN target_week_yn = 'Y' THEN 'T'
+					  	 ELSE 'M'
+					END
+				  WHEN dc.pay_type = 'CPP' THEN 'P'
+				END AS sg_kind
+				, dsm.material_kind
+				, dsm.exposure_time
+			FROM
+				public.dsp_sg_manager dsm
+			JOIN
+				public.dsp_campaign dc 
+			ON
+				dsm.campaign_id = dc.id
+			AND dsm.status = 1
+			UNION
+			SELECT
+				dsa.id as sg_id
+				, CASE WHEN dsa.ad_type = 'P' THEN 'C'
+					ELSE 'D'
+				END ad_type
+				, 'VIDEO'
+				, dsa.playtime 
+			FROM
+				public.dsp_service_ad dsa
+			) A
+		JOIN 
+			(
+			SELECT
+				stb.sg_id
+				, sts.slot_id
+				, st.product_id
+				, sp.api_key
+				, sd.serial_number
+			FROM
+				public.schedule_table_slot sts
+			JOIN
+				public.schedule_table st
+			ON
+				st.id = sts.schedule_table_id
+			JOIN
+				public.schedule_table_block stb
+			ON
+				stb.schedule_table_slot_id = sts.id
+			JOIN
+				public.ssp_product sp 
+			ON
+				sp.id = st.product_id 
+			JOIN
+				public.ssp_device sd
+			ON
+				sp.id = sd.product_id
+			WHERE
+				sd.motor_id IS NOT NULL
+			AND sp.api_key IS NOT NULL
+			AND sd.status = 'Y'
+			) B
+		ON
+			A.sg_id = B.sg_id
+		WHERE A.sg_id IN (359, 370, 362)
+	</select>
+	
+	<!-- 구에 속하는 랜덤 cpoint 좌표 -->
+	<select id="getRandomCpoint" parameterType="HashMap" resultType="HashMap" flushCache="true" useCache="false">
+		SELECT
+			ST_X((ST_DUMP(ST_GeneratePoints(A.geo_data, 1))).geom) as lng
+			, ST_Y((ST_DUMP(ST_GeneratePoints(A.geo_data, 1))).geom) as lat
+		FROM
+		(
+			SELECT 
+				geo_data
+			FROM 
+				public.area_code area
+			WHERE
+				gu_code = (
+				SELECT
+					gu_code
+				FROM
+					dsp_sg_area dsa 
+				LEFT JOIN
+					area_code ac 
+				ON
+					dsa.area_id = ac.id
+				WHERE
+					dsa.sg_id = #{sg_id}::int
+			)
+			ORDER BY random() LIMIT 1
+		) A
+	</select>
+
+	<!-- 로그 생성 (단일) -->
+	<insert id="addSingleLog" parameterType="HashMap">
+		INSERT INTO traffic.ad_event_traffic (
+			insert_date
+			, event_date
+			, cip
+			, sg_id
+			, slot_id
+			, sg_kind
+			, api_key
+			, refer_url
+			, device
+			, event_kind
+			, event_year
+			, event_month
+			, event_day
+			, event_hour
+			, event_min
+		)
+		VALUES (
+			now()
+			, #{event_date}::timestamptz
+			, #{cip}::inet
+			, #{sg_id}::int
+			, #{slot_id}::int
+			, #{sg_kind}
+			, #{api_key}
+			, #{refer_url}
+			, #{device}
+			, #{event_kind}
+			, (SELECT EXTRACT ('year' FROM public.f_str_to_ts(#{event_date}))::text)
+			, (SELECT LPAD(EXTRACT ('month' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('day' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('hour' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('minute' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+		)
+	</insert>
+
+	<!-- 로그 생성 (더미) sg_id, cip 가 null일 경우 랜덤 -->
+	<select id="addDumyLog" parameterType="HashMap" resultType="HashMap">
+		INSERT INTO traffic.ad_event_traffic (
+			event_date
+			, insert_date
+			, cip
+			, sg_id
+			, slot_id
+			, sg_kind
+			, api_key
+			, refer_url
+			, device
+			, event_kind
+			, cpoint
+			, event_year
+			, event_month
+			, event_day
+			, event_hour
+			, event_min
+		)
+		VALUES (
+			#{event_date}::timestamptz
+			, now()
+		<choose>
+			<when test='cip != null and cip != ""'>
+			, #{cip}::inet
+			</when>
+			<when test='rip != null and rip != ""'>
+			, #{rip}::inet
+			</when>
+			<when test='cip == null or cip == ""'>
+			, (SELECT test.f_create_random_ip())
+			</when>
+		</choose>
+			, #{sg_id}::int
+			, #{slot_id}::int
+			, #{sg_kind}
+			, #{api_key}
+			, #{refer_url}
+			, #{device}
+			, #{event_kind}
+		<choose>
+			<when test='cpoint != null and cpoint !=""'>
+			, #{cpoint}::point
+			</when>
+			<when test='lat != null and lng != null'>
+			, POINT(#{lng}, #{lat})
+			</when>
+			<otherwise>
+			, (SELECT test.f_create_random_gps(#{latitude_min}::float, #{latitude_max}::float, #{longitude_min}::float, #{longitude_max}::float)::point)
+			</otherwise>
+		</choose>
+			, (SELECT EXTRACT ('year' FROM public.f_str_to_ts(#{event_date}))::text)
+			, (SELECT LPAD(EXTRACT ('month' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('day' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('hour' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+			, (SELECT LPAD(EXTRACT ('minute' FROM public.f_str_to_ts(#{event_date}))::text, 2, '0'))
+		)
+		RETURNING cip, cpoint
+	</select>
+	
+	<!-- 공통 -->
+	
+	<!-- batch_monitor 조회 -->
+	<select id="getBatchMonitor" resultType="HashMap">
+		SELECT 
+			batch_code
+			, name
+			, batch_path
+			, log_path
+			, result
+			, execute_date
+			, record_size
+			, last_index
+		FROM 
+			public.batch_monitor
+		WHERE 
+			batch_code = #{batch_code}
+	</select>
+	
+	<!-- batch_monitor 갱신 -->
+	<update id="modifyBatchMonitor">
+		UPDATE 
+			public.batch_monitor 
+		SET
+			result = #{result}
+			, result_message = #{result_message}
+			, last_index = #{last_index}
+			, execute_date = now()
+			, update_date = now()
+		WHERE 
+			batch_code = #{batch_code}
+	</update>
+	
+	<!-- ad_count 가장 이전의 로그 날짜 조회 -->
+	<select id="getOldestAdCount" resultType="String">
+		SELECT 
+			TO_CHAR(insert_ymd, 'YYYY-MM-DD') as curr_date
+		FROM 
+			traffic.ad_count 
+		ORDER BY
+			curr_date
+		LIMIT 1
+	</select>
+	
+	<!-- ad_event_traffic 조회 -->
+	<select id="getSgEventTrafficList" resultType="HashMap">
+		SELECT 
+			id traffic_id
+			, event_date
+			, cip
+			, sg_id
+			, slot_id
+			, sg_kind
+			, api_key
+			, refer_url
+			, device
+			, event_kind
+			, status
+			, cpoint
+			, event_year
+			, event_month
+			, event_day
+			, event_hour
+			, event_min
+		FROM 
+			traffic.ad_event_traffic
+		<where>
+			event_date BETWEEN #{last_index}::timestamptz AND #{batch_date}::timestamptz
+			AND status = #{traffic_status}
+		</where>
+		ORDER BY event_date
+		<if test='record_size != null and !record_size.equals("")'>
+			LIMIT #{record_size}::int
+		</if>
+	</select>
+	
+	<!-- ad_event_log 등록 -->
+	<insert id="addSgEventLog">
+		INSERT INTO 
+			traffic.ad_event_log (
+				insert_date
+				, event_date
+				, cip 
+				, sg_id
+				, api_key
+				, refer_url 
+				, device 
+				, status 
+				, cpoint 
+				, event_year 
+				, event_month 
+				, event_day 
+				, event_hour 
+				, event_min 
+				, product_id 
+				, slot_id 
+				, sg_kind 
+				, car_number 
+				, log_status 
+				, display_time 
+				, display_start_date 
+				, display_end_date
+				, si_code
+				, gu_code 
+				, dong_code 
+				<if test='error_kind != null and error_kind != ""'>
+					, error_kind
+				</if> 
+				<if test='event_kind != null and event_kind != ""'>
+					, event_kind
+				</if> 
+			)
+			VALUES (
+				now()
+				, #{event_date}::timestamptz
+				, #{cip} ::inet
+				, #{sg_id}::bigint
+				, #{api_key}
+				, #{refer_url} 
+				, #{device} 
+				, #{event_log_status} 
+				, #{cpoint}::point
+				, #{event_year} 
+				, #{event_month} 
+				, #{event_day} 
+				, #{event_hour} 
+				, #{event_min} 
+				, #{product_id}::bigint
+				, #{slot_id}::bigint 
+				, #{sg_kind} 
+				, #{car_number} 
+				, #{log_status} 
+				, #{display_time}::int
+				, #{display_start_date}::timestamptz
+				, #{display_end_date}::timestamptz
+				, #{si_code} 
+				, #{gu_code} 
+				, #{dong_code} 
+				<if test='error_kind != null and error_kind != ""'>
+					, #{error_kind}
+				</if> 
+				<if test='event_kind != null and event_kind != ""'>
+					, #{event_kind}
+				</if> 
+			)
+	</insert>
+	
+	<!-- ad_event_traffic status 완료 처리-->
+	<update id="modifySgEventTraffic">
+		UPDATE
+			traffic.ad_event_traffic
+		SET 
+			status = #{traffic_status}
+		WHERE 
+			id = #{traffic_id}
+	</update>
+	
+	<!-- 남은 광고 노출 수 하나씩 감소 -->
+	<update id="minusScheduleTableSg">
+		UPDATE 
+			public.schedule_table_sg
+		SET 
+			remain_count = CASE
+				WHEN remain_count > 0 THEN remain_count - 1
+				ELSE remain_count
+			END
+		WHERE 
+			sg_id = #{sg_id}::bigint
+			AND date_ymd = TO_CHAR(#{event_date}::timestamptz, 'YYYY-MM-DD')
+	</update>
+	
+	<!-- 남은 광고 노출 수 적용-->
+	<update id="minusScheduleTableSgRemainCount">
+		UPDATE 
+			public.schedule_table_sg
+		SET 
+			remain_count = #{remain_count}
+			<if test='excess_count != null and !excess_count.equals("")'>
+				, excess_count = #{excess_count}
+			</if>
+		WHERE 
+			sg_id = #{sg_id}::bigint
+			AND date_ymd = TO_CHAR(#{schedule_date}::timestamptz, 'YYYY-MM-DD')
+	</update>
+	
+	<!-- 초과 노출 수 증가 -->
+	<update id="plusExcessCount">
+		UPDATE 
+			public.schedule_table_sg
+		SET 
+			excess_count = excess_count + 1
+		WHERE 
+			sg_id = #{sg_id}::bigint
+			AND date_ymd = TO_CHAR(#{event_date}::timestamptz, 'YYYY-MM-DD')
+	</update>
+	
+	<!-- dsp_sg_manager 남은 광고 노출 수 감소 -->
+	<select id="minusRemainExposureCount" resultType="Integer">
+		UPDATE
+			public.dsp_sg_manager
+		SET
+			remain_exposure_count = CASE
+				WHEN remain_exposure_count > 0 THEN remain_exposure_count - 1
+				ELSE remain_exposure_count
+			END
+		WHERE 
+			id = #{sg_id}::bigint
+		RETURNING remain_exposure_count
+	</select>
+	
+	<!-- dsp_sg_manager remain_exposure_count 를 현재 일자의 차감수 만큼 원복 -->
+	<update id="plusDspSgManagerRemainCount">
+		UPDATE 
+			public.dsp_sg_manager
+		SET 
+			remain_exposure_count = remain_exposure_count + #{prev_exposure_count}
+		WHERE 
+			id = #{sg_id}::bigint
+	</update>
+	
+	<!-- 남은 광고 노출 수 적용-->
+	<select id="minusDspSgManagerRemainCount" resultType="HashMap">
+		UPDATE 
+			public.dsp_sg_manager
+		SET
+			remain_exposure_count = remain_exposure_count - #{remain_exposure_count}
+		WHERE 
+			id = #{sg_id}::bigint
+		RETURNING id, status, remain_exposure_count
+	</select>
+	
+	<!-- dsp_sg_manager 광고 시작시간 등록 -->
+	<update id="modifyDspSgManagerStartDate">
+		UPDATE 
+			public.dsp_sg_manager
+		<set>
+			display_start_date = #{display_start_date}::timestamptz
+		</set>
+		WHERE
+			id = #{sg_id}::bigint
+	</update>
+	
+	<!-- dsp_sg_manager 광고 종료시간 등록 -->
+	<update id="modifyDspSgManagerEndDate">
+		UPDATE 
+			public.dsp_sg_manager
+		<set>
+			display_end_date = #{display_end_date}::timestamptz
+			<if test='sg_status != null and sg_status != ""'>
+				, status = #{sg_status}
+			</if>
+		</set>
+		WHERE
+			id = #{sg_id}::bigint
+	</update>
+	
+	<!-- 가장 이전의 ad_event_log 날짜 -->
+	<select id="getOldestSgEventLog" resultType="String">
+		SELECT 
+			TO_CHAR(event_date, 'YYYY-MM-DD') as curr_date
+		FROM 
+			traffic.ad_event_log
+		ORDER BY
+			event_date
+		LIMIT 1
+	</select>
+	
+	<!-- 날짜별 ad_event_log 테이블 조회 -->
+	<select id="getSgEventLogList" resultType="HashMap">
+		SELECT 
+			ael.id ad_event_log_id
+			, ael.event_date 
+			, ael.sg_id
+			, dsm.campaign_id 
+			, ael.product_id
+			, ael.device 
+			, ael.car_number 
+			, ael.sg_kind
+			, ael.status
+			, ael.log_status 
+			, ael.process_kind
+			, ael.event_year AS year
+			, ael.event_month AS month
+			, ael.event_day AS day
+			, CASE WHEN event_hour IS NOT NULL THEN 1 ELSE 0 END total_count
+			, CASE WHEN ael.event_hour = '00' THEN 1 ELSE 0 END hour_00
+			, CASE WHEN ael.event_hour = '01' THEN 1 ELSE 0 END hour_01
+			, CASE WHEN ael.event_hour = '02' THEN 1 ELSE 0 END hour_02
+			, CASE WHEN ael.event_hour = '03' THEN 1 ELSE 0 END hour_03
+			, CASE WHEN ael.event_hour = '04' THEN 1 ELSE 0 END hour_04
+			, CASE WHEN ael.event_hour = '05' THEN 1 ELSE 0 END hour_05
+			, CASE WHEN ael.event_hour = '06' THEN 1 ELSE 0 END hour_06
+			, CASE WHEN ael.event_hour = '07' THEN 1 ELSE 0 END hour_07
+			, CASE WHEN ael.event_hour = '08' THEN 1 ELSE 0 END hour_08
+			, CASE WHEN ael.event_hour = '09' THEN 1 ELSE 0 END hour_09
+			, CASE WHEN ael.event_hour = '10' THEN 1 ELSE 0 END hour_10
+			, CASE WHEN ael.event_hour = '11' THEN 1 ELSE 0 END hour_11
+			, CASE WHEN ael.event_hour = '12' THEN 1 ELSE 0 END hour_12
+			, CASE WHEN ael.event_hour = '13' THEN 1 ELSE 0 END hour_13
+			, CASE WHEN ael.event_hour = '14' THEN 1 ELSE 0 END hour_14
+			, CASE WHEN ael.event_hour = '15' THEN 1 ELSE 0 END hour_15
+			, CASE WHEN ael.event_hour = '16' THEN 1 ELSE 0 END hour_16
+			, CASE WHEN ael.event_hour = '17' THEN 1 ELSE 0 END hour_17
+			, CASE WHEN ael.event_hour = '18' THEN 1 ELSE 0 END hour_18
+			, CASE WHEN ael.event_hour = '19' THEN 1 ELSE 0 END hour_19
+			, CASE WHEN ael.event_hour = '20' THEN 1 ELSE 0 END hour_20
+			, CASE WHEN ael.event_hour = '21' THEN 1 ELSE 0 END hour_21
+			, CASE WHEN ael.event_hour = '22' THEN 1 ELSE 0 END hour_22
+			, CASE WHEN ael.event_hour = '23' THEN 1 ELSE 0 END hour_23
+		FROM 
+			traffic.ad_event_log ael
+		JOIN dsp_sg_manager dsm
+		ON ael.sg_id = dsm.id 
+		WHERE 
+			ael.event_date BETWEEN #{event_date}::timestamptz AND #{event_date}::timestamptz + interval'1' day
+			AND ael.log_status IN ('S', 'R')
+			AND ael.sg_kind NOT IN ('D', 'C')
+	</select>
+	
+	<!-- log_status R => S 로 수정 -->
+	<update id="modifyAdEventLog">
+		UPDATE 
+			traffic.ad_event_log
+		<set>
+			<if test='change_status != null and change_status != ""'>
+				, status = #{change_status}
+			</if>
+			<if test='log_status != null and log_status != ""'>
+				, log_status = #{log_status}
+			</if>
+		</set>	
+		<where> 
+			id = #{ad_event_log_id}::bigint
+		</where>
+	</update>
+
+	<!-- 해당 일자의 지정한 광고의 노출량 -->	
+	<select id="getSgCount" resultType="HashMap">
+		SELECT
+			sg_id
+			, total_count 
+		FROM
+			traffic.ad_count ac 
+		WHERE 
+			sg_id = #{sg_id}::bigint
+			AND data_ymd = #{schedule_date}::varchar
+	</select>
+	
+	<sql id="log_select_names_sql">
+		, year
+		, month 
+		, day
+		, SUM(total_count) AS total_count 
+		, COALESCE(SUM(hour_00), 0) AS hour_00
+		, COALESCE(SUM(hour_01), 0) AS hour_01
+		, COALESCE(SUM(hour_02), 0) AS hour_02
+		, COALESCE(SUM(hour_03), 0) AS hour_03
+		, COALESCE(SUM(hour_04), 0) AS hour_04
+		, COALESCE(SUM(hour_05), 0) AS hour_05
+		, COALESCE(SUM(hour_06), 0) AS hour_06
+		, COALESCE(SUM(hour_07), 0) AS hour_07
+		, COALESCE(SUM(hour_08), 0) AS hour_08
+		, COALESCE(SUM(hour_09), 0) AS hour_09
+		, COALESCE(SUM(hour_10), 0) AS hour_10
+		, COALESCE(SUM(hour_11), 0) AS hour_11
+		, COALESCE(SUM(hour_12), 0) AS hour_12
+		, COALESCE(SUM(hour_13), 0) AS hour_13
+		, COALESCE(SUM(hour_14), 0) AS hour_14
+		, COALESCE(SUM(hour_15), 0) AS hour_15
+		, COALESCE(SUM(hour_16), 0) AS hour_16
+		, COALESCE(SUM(hour_17), 0) AS hour_17
+		, COALESCE(SUM(hour_18), 0) AS hour_18
+		, COALESCE(SUM(hour_19), 0) AS hour_19
+		, COALESCE(SUM(hour_20), 0) AS hour_20
+		, COALESCE(SUM(hour_21), 0) AS hour_21
+		, COALESCE(SUM(hour_22), 0) AS hour_22
+		, COALESCE(SUM(hour_23), 0) AS hour_23
+	</sql>
+	
+	<sql id="log_insert_names_sql">
+		, year
+		, month
+		, day
+		, total_count
+		, hour_00
+		, hour_01
+		, hour_02
+		, hour_03
+		, hour_04
+		, hour_05
+		, hour_06
+		, hour_07
+		, hour_08
+		, hour_09
+		, hour_10
+		, hour_11
+		, hour_12
+		, hour_13
+		, hour_14
+		, hour_15
+		, hour_16
+		, hour_17
+		, hour_18
+		, hour_19
+		, hour_20
+		, hour_21
+		, hour_22
+		, hour_23
+	</sql>
+	
+	<sql id="log_insert_values_sql">
+		, #{year}
+		, #{month}
+		, #{day}
+		, #{total_count}
+		, #{hour_00}
+		, #{hour_01}
+		, #{hour_02}
+		, #{hour_03}
+		, #{hour_04}
+		, #{hour_05}
+		, #{hour_06}
+		, #{hour_07}
+		, #{hour_08}
+		, #{hour_09}
+		, #{hour_10}
+		, #{hour_11}
+		, #{hour_12}
+		, #{hour_13}
+		, #{hour_14}
+		, #{hour_15}
+		, #{hour_16}
+		, #{hour_17}  
+		, #{hour_18}
+		, #{hour_19}
+		, #{hour_20}
+		, #{hour_21}
+		, #{hour_22}
+		, #{hour_23}
+	</sql>
+	
+	<sql id="log_update_values_sql">
+		total_count = #{total_count}
+		, hour_00 = #{hour_00}
+		, hour_01 = #{hour_01}
+		, hour_02 = #{hour_02}
+		, hour_03 = #{hour_03}
+		, hour_04 = #{hour_04}
+		, hour_05 = #{hour_05}
+		, hour_06 = #{hour_06}
+		, hour_07 = #{hour_07}
+		, hour_08 = #{hour_08}
+		, hour_09 = #{hour_09}
+		, hour_10 = #{hour_10}
+		, hour_11 = #{hour_11}
+		, hour_12 = #{hour_12}
+		, hour_13 = #{hour_13}
+		, hour_14 = #{hour_14}
+		, hour_15 = #{hour_15}
+		, hour_16 = #{hour_16}
+		, hour_17 = #{hour_17}
+		, hour_18 = #{hour_18}
+		, hour_19 = #{hour_19}
+		, hour_20 = #{hour_20}
+		, hour_21 = #{hour_21}
+		, hour_22 = #{hour_22}
+		, hour_23 = #{hour_23}
+	</sql>
+	
+	<insert id="saveSgCount">
+		INSERT INTO 
+			traffic.ad_count (
+				campaign_id
+				, sg_id 
+				, product_id
+				, car_number 
+				, device 
+				, data_ymd 
+				, insert_date
+				<include refid="log_insert_names_sql"/>
+			)
+			VALUES (
+				#{campaign_id}
+				, #{sg_id}
+				, #{product_id}
+				, #{car_number}
+				, #{device}
+				, CONCAT(#{year}, '-', #{month}, '-', #{day})
+				, now()
+				<include refid="log_insert_values_sql"/>
+			)
+			ON CONFLICT (sg_id, product_id, car_number, device, year, month, day)
+			DO UPDATE SET
+                total_count = traffic.ad_count.total_count + #{total_count}
+                , hour_00 = traffic.ad_count.hour_00 + #{hour_00} 
+                , hour_01 = traffic.ad_count.hour_01 + #{hour_01}
+                , hour_02 = traffic.ad_count.hour_02 + #{hour_02}
+                , hour_03 = traffic.ad_count.hour_03 + #{hour_03}
+                , hour_04 = traffic.ad_count.hour_04 + #{hour_04}
+                , hour_05 = traffic.ad_count.hour_05 + #{hour_05}
+                , hour_06 = traffic.ad_count.hour_06 + #{hour_06}
+                , hour_07 = traffic.ad_count.hour_07 + #{hour_07}
+                , hour_08 = traffic.ad_count.hour_08 + #{hour_08}
+                , hour_09 = traffic.ad_count.hour_09 + #{hour_09}
+                , hour_10 = traffic.ad_count.hour_10 + #{hour_10}
+                , hour_11 = traffic.ad_count.hour_11 + #{hour_11}
+                , hour_12 = traffic.ad_count.hour_12 + #{hour_12}
+                , hour_13 = traffic.ad_count.hour_13 + #{hour_13}
+                , hour_14 = traffic.ad_count.hour_14 + #{hour_14}
+                , hour_15 = traffic.ad_count.hour_15 + #{hour_15}
+                , hour_16 = traffic.ad_count.hour_16 + #{hour_16}
+                , hour_17 = traffic.ad_count.hour_17 + #{hour_17}
+                , hour_18 = traffic.ad_count.hour_18 + #{hour_18}
+                , hour_19 = traffic.ad_count.hour_19 + #{hour_19}
+                , hour_20 = traffic.ad_count.hour_20 + #{hour_20}
+                , hour_21 = traffic.ad_count.hour_21 + #{hour_21}
+                , hour_22 = traffic.ad_count.hour_22 + #{hour_22}
+                , hour_23 = traffic.ad_count.hour_23 + #{hour_23}
+	</insert>
+	
+	<!-- ad_count delete -->
+	<delete id="removeSgCount">
+		DELETE FROM 
+			traffic.ad_count
+		WHERE 
+			data_ymd = #{event_date}::varchar
+	</delete>
+	
+	<!-- ========== 리포트 공통 로그 배치 ========== -->
+	
+	<!-- ad_sg_product_count -->
+	<select id="getAdSgProductCount" resultType="HashMap">
+		SELECT
+			m.id demand_id
+			, m.agency_id 
+			, ac.campaign_id 
+			, ac.sg_id 
+			, ac.product_id 
+			, ac.data_ymd
+			<include refid="log_select_names_sql"></include> 
+		FROM
+			traffic.ad_count ac 
+		JOIN public.dsp_campaign dc 
+		ON ac.campaign_id = dc.id
+		JOIN member.member m
+		ON dc.member_id = m.id
+		WHERE 
+			ac.data_ymd = TO_CHAR(#{batch_date}::timestamptz, 'YYYY-MM-DD')
+		GROUP BY 
+			m.id, m.agency_id, ac.campaign_id, ac.sg_id, ac.product_id, ac.data_ymd, ac.year, ac.month, ac.day
+	</select>
+	
+	<!-- ad_sg_product_count insert or update -->
+	<insert id="saveAdSgProductCount">
+		INSERT INTO
+			traffic.ad_sg_product_count (
+				dsp_id
+				, agency_id 
+				, campaign_id 
+				, sg_id 
+				, product_id 
+				, data_ymd 
+				<include refid="log_insert_names_sql"/>
+			)
+			VALUES (
+				#{demand_id}
+				, #{agency_id}
+				, #{campaign_id}
+				, #{sg_id}
+				, #{product_id}
+				, #{data_ymd}
+				<include refid="log_insert_values_sql"/>
+			)
+			ON CONFLICT (dsp_id, agency_id, campaign_id, sg_id, product_id, data_ymd, year, month, day)
+			DO UPDATE SET 
+				<include refid="log_update_values_sql"/>
+	</insert>
+	
+	<!-- dsp_report.count_sg -->
+	<select id="getDemandCountSg" resultType="HashMap">
+		SELECT
+			m.id demand_id
+			, ac.campaign_id 
+			, ac.sg_id 
+			, ac.data_ymd
+			<include refid="log_select_names_sql"></include> 
+		FROM
+			traffic.ad_count ac 
+		JOIN public.dsp_campaign dc 
+		ON ac.campaign_id = dc.id
+		JOIN member.member m
+		ON dc.member_id = m.id
+		WHERE 
+			ac.data_ymd = TO_CHAR(#{batch_date}::timestamptz, 'YYYY-MM-DD')
+		GROUP BY 
+			m.id, ac.campaign_id, ac.sg_id, ac.data_ymd, ac.year, ac.month, ac.day
+	</select>
+	
+	<!-- dsp_report.count_sg insert or update -->
+	<insert id="saveDemandCountSg">
+		INSERT INTO
+			dsp_report.count_sg (
+				dsp_id
+				, campaign_id 
+				, sg_id 
+				, data_ymd 
+				<include refid="log_insert_names_sql"/>
+			)
+			VALUES (
+				#{demand_id}
+				, #{campaign_id}
+				, #{sg_id}
+				, #{data_ymd}
+				<include refid="log_insert_values_sql"/>
+			)
+			ON CONFLICT (dsp_id, campaign_id, sg_id, data_ymd, year, month, day)
+			DO UPDATE SET 
+				<include refid="log_update_values_sql"/>
+	</insert>
+	
+	<!-- dsp_report.count_sg_area -->
+	<select id="getDemandCountSgArea" resultType="HashMap">
+		SELECT
+			dc.member_id AS dsp_id
+			, dc.id as campaign_id 
+			, ael.sg_id 
+			, ael.si_code
+			, ael.gu_code
+			, ael.dong_code
+			, CONCAT(event_year, '-', event_month, '-', event_day) AS data_ymd
+			, ael.event_year AS year
+			, ael.event_month AS month
+			, ael.event_day AS day
+			, COUNT(ael.*) as total_count
+			, SUM(CASE WHEN ael.event_hour = '00' THEN 1 ELSE 0 END ) AS hour_00
+			, SUM(CASE WHEN ael.event_hour = '01' THEN 1 ELSE 0 END ) AS hour_01
+			, SUM(CASE WHEN ael.event_hour = '02' THEN 1 ELSE 0 END ) AS hour_02
+			, SUM(CASE WHEN ael.event_hour = '03' THEN 1 ELSE 0 END ) AS hour_03
+			, SUM(CASE WHEN ael.event_hour = '04' THEN 1 ELSE 0 END ) AS hour_04
+			, SUM(CASE WHEN ael.event_hour = '05' THEN 1 ELSE 0 END ) AS hour_05
+			, SUM(CASE WHEN ael.event_hour = '06' THEN 1 ELSE 0 END ) AS hour_06
+			, SUM(CASE WHEN ael.event_hour = '07' THEN 1 ELSE 0 END ) AS hour_07
+			, SUM(CASE WHEN ael.event_hour = '08' THEN 1 ELSE 0 END ) AS hour_08
+			, SUM(CASE WHEN ael.event_hour = '09' THEN 1 ELSE 0 END ) AS hour_09
+			, SUM(CASE WHEN ael.event_hour = '10' THEN 1 ELSE 0 END ) AS hour_10
+			, SUM(CASE WHEN ael.event_hour = '11' THEN 1 ELSE 0 END ) AS hour_11
+			, SUM(CASE WHEN ael.event_hour = '12' THEN 1 ELSE 0 END ) AS hour_12
+			, SUM(CASE WHEN ael.event_hour = '13' THEN 1 ELSE 0 END ) AS hour_13
+			, SUM(CASE WHEN ael.event_hour = '14' THEN 1 ELSE 0 END ) AS hour_14
+			, SUM(CASE WHEN ael.event_hour = '15' THEN 1 ELSE 0 END ) AS hour_15
+			, SUM(CASE WHEN ael.event_hour = '16' THEN 1 ELSE 0 END ) AS hour_16
+			, SUM(CASE WHEN ael.event_hour = '17' THEN 1 ELSE 0 END ) AS hour_17
+			, SUM(CASE WHEN ael.event_hour = '18' THEN 1 ELSE 0 END ) AS hour_18
+			, SUM(CASE WHEN ael.event_hour = '19' THEN 1 ELSE 0 END ) AS hour_19
+			, SUM(CASE WHEN ael.event_hour = '20' THEN 1 ELSE 0 END ) AS hour_20
+			, SUM(CASE WHEN ael.event_hour = '21' THEN 1 ELSE 0 END ) AS hour_21
+			, SUM(CASE WHEN ael.event_hour = '22' THEN 1 ELSE 0 END ) AS hour_22
+			, SUM(CASE WHEN ael.event_hour = '23' THEN 1 ELSE 0 END ) AS hour_23
+		FROM
+			 traffic.ad_event_log ael
+		JOIN public.dsp_sg_manager dsm
+		ON ael.sg_id = dsm.id 
+		JOIN public.dsp_campaign dc 
+		ON dsm.campaign_id = dc.id
+		WHERE 
+			ael.status = 'C'
+			AND ael.log_status = 'S'
+			AND ael.sg_id IS NOT NULL 
+			AND ael.si_code IS NOT NULL 
+			AND ael.gu_code IS NOT NULL
+			AND TO_CHAR(ael.event_date, 'YYYY-MM-DD')  = TO_CHAR(#{batch_date}::timestamptz, 'YYYY-MM-DD')
+		GROUP BY 
+			dc.member_id, dc.id, dc.id, ael.sg_id, ael.si_code, ael.gu_code, ael.dong_code, ael.event_year, ael.event_month, ael.event_day 
+		ORDER BY
+			ael.sg_id, ael.si_code, ael.gu_code, ael.dong_code, ael.event_year, ael.event_month, ael.event_day
+	</select>
+	
+	<!-- dsp_report.count_sg_area insert or update -->
+	<insert id="saveDemandCountSgArea">
+		INSERT INTO
+			dsp_report.count_sg_area (
+				dsp_id
+				, campaign_id 
+				, sg_id 
+				, si_code
+				, gu_code
+				, dong_code
+				, data_ymd
+				<include refid="log_insert_names_sql"/>
+			)
+			VALUES (
+				#{dsp_id}
+				, #{campaign_id}
+				, #{sg_id}
+				, #{si_code}
+				, #{gu_code}
+				, #{dong_code}
+				, #{data_ymd}
+				<include refid="log_insert_values_sql"/>
+			)
+			ON CONFLICT (sg_id, si_code, gu_code, dong_code, year, month, day)
+			DO UPDATE SET 
+				<include refid="log_update_values_sql"/>
+	</insert>
+	
+	<!-- ssp_report.ad_count_proudct -->
+	<select id="getSspAdCountProduct" resultType="HashMap">
+		SELECT 
+			  sc.member_id as ssp_id
+			, product_id 
+			, data_ymd 
+			<include refid="log_select_names_sql"></include>
+		FROM
+			traffic.ad_count ac 
+		JOIN public.ssp_product sp
+		ON ac.product_id = sp.id 
+		join public.ssp_category sc 
+		on sp.category_id = sc.id 
+		WHERE 
+			ac.data_ymd = TO_CHAR(#{batch_date}::timestamptz, 'YYYY-MM-DD') 
+		GROUP BY
+			sc.member_id, product_id, data_ymd, year, month, day
+		ORDER BY 
+			sc.member_id, product_id, year, month, day
+	</select>
+	
+	<!-- ssp_report.ad_count_proudct insert or update -->
+	<insert id="saveSspAdCountProduct">
+		INSERT INTO
+			ssp_report.ad_count_product (
+				ssp_id
+				, product_id 
+				, data_ymd
+				<include refid="log_insert_names_sql"/>
+			)
+			VALUES (
+				#{ssp_id}
+				, #{product_id}
+				, #{data_ymd}
+				<include refid="log_insert_values_sql"/>
+			)
+			ON CONFLICT (ssp_id, product_id, year, month, day)
+			DO UPDATE SET 
+				<include refid="log_update_values_sql"/>
+	</insert>
+	
+	<!-- ssp_report.ad_count_proudct_device -->
+	<select id="getSspAdCountProductDevice" resultType="HashMap">
+		SELECT 
+			  sc.member_id as ssp_id
+			, ac.product_id
+			, sd.id as device_id
+			, data_ymd 
+			<include refid="log_select_names_sql"></include>
+		FROM
+			traffic.ad_count ac 
+		JOIN public.ssp_product sp
+		ON ac.product_id = sp.id 
+		join public.ssp_category sc 
+		on sp.category_id = sc.id 
+		JOIN public.ssp_device sd
+		ON ac.product_id = sd.product_id AND ac.device = sd.serial_number
+		WHERE 
+			ac.data_ymd = TO_CHAR(#{batch_date}::timestamptz, 'YYYY-MM-DD')  
+		GROUP BY
+			sc.member_id, ac.product_id, device_id, data_ymd, year, month, day 
+		ORDER BY 
+			sc.member_id, ac.product_id, device_id, year, month, day
+			
+	</select>
+	
+	<!-- ssp_report.ad_count_proudct_device insert or update -->
+	<insert id="saveSspAdCountProductDevice">
+		INSERT INTO
+			ssp_report.ad_count_product_device (
+				ssp_id
+				, product_id 
+				, device_id
+				, data_ymd
+				<include refid="log_insert_names_sql"/>
+			)
+			VALUES (
+				#{ssp_id}
+				, #{product_id}
+				, #{device_id}
+				, #{data_ymd}
+				<include refid="log_insert_values_sql"/>
+			)
+			ON CONFLICT (ssp_id, product_id, device_id, year, month, day)
+			DO UPDATE SET 
+				<include refid="log_update_values_sql"/>
+	</insert>
+	
+	<!-- ========== 리포트 공통 로그 배치 ========== -->
+	
+</mapper>

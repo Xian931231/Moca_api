@@ -1,0 +1,78 @@
+<html xmlns:th="http://www.thymeleaf.org">
+	    <div class="container" id="container">
+	    	<div class="row opt">
+	    		<div class="col-md-6">
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                    Api URL<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="API에서 사용할 URL을 입력합니다."><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="text" id="apiUrl" class="form-control input-sm" placeholder="Input Your Site URL." value="">
+		                </div>
+			        </div>
+			        <div class="row">
+		                <div class="col-md-4 text-right">
+		                  app_key<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="Api key "><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		              </div>
+		              <div class="col-md-8">
+		                  <input type="hidden" id="app_key" value="app-key">
+		                  <input type="text" class="form-control input-sm" placeholder="value" id="app_key_value" value=9045794700c8913b7f82e141b42681b33c7c7525aa31af78d0fe11b661a5fec7>
+	              		</div>
+             		</div>
+	    		</div>
+	    		<div class="col-md-6">
+	               	<div class="row">
+		                <div class="col-md-4 text-right">
+		                    package-name<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="패키지명"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+	               		<div class="col-md-8">
+		                    <input type="hidden" id="package_name" value="package-name">
+		                    <input type="text" class="form-control input-sm" placeholder="value" id="package_name_value" value="com.mocafelab">
+	               		</div>
+	               		<div class="col-md-4 text-right">
+		                    device-os<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="non-web 일때, 디바이스 os"><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="hidden" id="deviceOs" value="device-os">
+		                    <input type="text" class="form-control input-sm" placeholder="A:Android, I:iOS" id="deviceOs_value" value="A">
+		                </div>
+	              	</div>
+	              	
+	               	<div class="invisible row">
+		                <div class="col-md-4 text-right">
+		                    SELECT MODE<a href="javascript:void(0);" class="tooltipP" data-toggle="tooltip" title="Select Your Mode! (WEB/Non WEB) "><span class="glyphicon glyphicon-info-sign"></span></a> : 
+		                </div>
+		                <div class="col-md-8">
+		                    <input type="radio" class="form-control2" style="height:15px;" name="mode" id="mode_web"> <label for="mode_web">Web</label>
+		                    <input type="radio" class="form-control2" style="height:15px;" name="mode" id="mode_nonweb" checked="checked"> <label for="mode_nonweb">Non Web</label>
+		                </div>
+	                </div>
+	    		</div>
+	    	</div>
+	    	<div class="row non-web-opt opt" style="display:none;">
+				<div class="col-md-6">
+			        <div class="row">
+		                
+			        </div>
+		        </div>
+				        
+				<div class="col-md-6">
+				</div>
+	    	</div>
+	    	
+	    	
+
+			<!-- <div class="row">
+	        	session-id : 자동 로그인 / 세션 인증이 필요한 API 통신시 필요합니다. (로그인이 필요없는 API는 사용하지 않습니다.)<br>
+	        	device-* : 로그인시 해당 값으로 DB에 저장됩니다.<br>
+	        	device-timezone : 타임존 기준으로 시간 값을 반환합니다. 디폴트는 한국시간입니다.<br>
+	        </div> -->
+	        <hr>
+	        <!-- 
+		    <div>
+		    	Data format <br/>
+		    	e=AES256 encode JSON
+		    </div>
+		    -->
+	    </div> 
+</html>

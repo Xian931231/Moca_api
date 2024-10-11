@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns:th="http://www.thymeleaf.org">
+	<head th:include="_api/header :: top"></head>  
+	<script src="/js/_api/error.js"></script>
+  	<body>
+    	<div th:replace="_api/header :: nav"></div>
+   		<div class="container">
+			<table class="table">
+				<thead>
+					<tr>
+						<th width="5%">retCode</th>
+						<th width="">retMsg</th>
+					</tr>
+				</thead>
+				<tbody id="errorBody" class="table table-striped">
+				</tbody>
+			</table>
+	    </div>
+  	</body>
+</html>

@@ -1,0 +1,106 @@
+# api 기본 주소
+apiPrefix: /api/v1
+
+server:
+  port: 9091
+  error:
+    whitelabel:
+      enabled: false
+
+spring:
+  profiles:
+      active: prod
+  thymeleaf:
+    prefix: classpath:templates/
+    suffix: .html
+    cache: false
+
+mybatis:
+  type-aliases-package: com.mocafelab.api.mapper
+  mapper-locations: sql/**/*.xml
+
+# jasypt
+jasypt:
+  encryptor:
+    algorithm: PBEWithMD5AndDES
+    iv-generator-classname: org.jasypt.iv.NoIvGenerator
+    password: ${jasypt.encryptor.password}
+
+---
+spring:
+  config:
+    activate:
+      on-profile:
+      - local
+  datasource:
+    url: jdbc:postgresql://demo.newfrom.net:55432/dev_moca
+    driver-class-name: org.postgresql.Driver
+    username: moca
+    password: ENC(XrtNVo7DRPO26VxqlVs2ohm58t3IuG7n)
+
+batch:
+  path:
+    default: /Users/mocafe
+
+logging:
+  config: classpath:log4j2_local.yml
+    
+---
+spring:
+  config:
+    activate:
+      on-profile:
+      - demo  
+  datasource:
+    url: jdbc:postgresql://mocafe-test-db.crxpbdtn2qtc.ap-northeast-2.rds.amazonaws.com:5432/test_moca
+    driver-class-name: org.postgresql.Driver
+    username: moca
+    password: ENC(7TlrCi5gS78jnawZeNxoifDDs16G9Sz1)
+    
+batch:
+  path:
+    default: /home/mocafe
+
+logging:
+  config: classpath:log4j2_dev.yml
+
+---
+spring:
+  config:
+    activate:
+      on-profile:
+      - dev
+  datasource:
+    url: jdbc:postgresql://demo.newfrom.net:55432/dev_moca
+    driver-class-name: org.postgresql.Driver
+    username: moca
+    password: ENC(XrtNVo7DRPO26VxqlVs2ohm58t3IuG7n)
+
+batch:
+  path:
+    default: /home/mocafe
+    
+logging:
+  config: classpath:log4j2_dev.yml
+  
+---
+spring:
+  config:
+    activate:
+      on-profile:
+      - prod
+  datasource:
+    url: jdbc:postgresql://mocafe-prod-db.crxpbdtn2qtc.ap-northeast-2.rds.amazonaws.com/moca
+    driver-class-name: org.postgresql.Driver
+    username: moca
+    password: ENC(q+4p4nPKaIN2W8ugQpfbi8wchlQPNH3G)
+    hikari:
+      maximum-pool-size: 30 
+      minimum-idle: 10 
+
+batch:
+  path:
+    default: /home/mocafe
+    
+logging:
+  config: classpath:log4j2_prod.yml

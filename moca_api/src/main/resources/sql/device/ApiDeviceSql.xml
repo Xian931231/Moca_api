@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mocafelab.api.device.ApiDeviceMapper">
+
+	<!-- 상품정보의 api_key로 정보 조회 -->
+	<select id="getProduct" resultType="HashMap">
+		SELECT
+			id product_id
+			, product_name 
+			, os 
+			, package_id 
+			, screen_resolution page_size_code
+		FROM 
+			public.ssp_product
+		WHERE
+			api_key = #{api_key}::varchar
+			<if test='check_product != null and check_product != ""'>
+				AND id = #{device_product_id}::bigint
+			</if>
+	</select>
+	
+	<select id="getSspDevice" resultType="HashMap">
+		SELECT 
+			id ssp_device_id
+			, product_id 
+			, motor_id 
+			, member_id 
+			, model_name 
+			, serial_number 
+			, status 
+		FROM 
+			ssp_device sd 
+		WHERE 
+			serial_number = #{device}::varchar
+	</select>
+
+	<!-- 위치 데이터 조회 -->
+	<select id="getAreaCode" resultType="HashMap">
+		SELECT
+			id
+			, geo_data
+			, dong_name
+			, gu_name
+			, si_name
+			, si_code
+			, gu_code 
+			, dong_code
+		FROM 
+			public.area_code
+		WHERE
+			ST_CONTAINS(geo_data, ST_GEOMFROMTEXT(#{point}))
+	</select>
+	
+	<!-- 상품의 차량 정보 -->
+	<select id="getMotor" resultType="HashMap">
+		SELECT
+			sp.id product_id 
+			, sd.id device_id
+			, sd.status device_status 
+			, sm.id motor_id
+			, sm.car_number 
+			, sm.status motor_status
+			, sm.cpoint
+			, sm.si_code  
+			, sm.gu_code 
+			, sm.dong_code 
+			, (SELECT CONCAT(si_name, ' ', gu_name, ' ', dong_name) FROM public.area_code ac WHERE ac.dong_code = sm.dong_code) local_name
+		FROM 
+			public.ssp_product sp 
+		JOIN public.ssp_device sd 
+		ON sp.id = sd.product_id AND sp.id = #{product_id}::bigint AND sd.serial_number = #{device}
+		JOIN ssp_motor sm 
+		ON sd.motor_id = sm.id 
+	</select>
+	
+	<!-- 차량 로그 등록 -->
+	<insert id="addMotorGpsLog">
+		INSERT INTO 
+			traffic.ssp_motor_gps_log (
+				car_number
+				, cpoint 
+				, insert_date 
+				, si_code
+				, gu_code 
+				, dong_code 
+			) 
+			VALUES (
+				#{car_number}
+				, POINT(#{latitude}::DOUBLE PRECISION, #{longitude}::DOUBLE PRECISION)
+				, now()
+				, COALESCE(#{si_code}, null)
+				, COALESCE(#{gu_code}, null)
+				, COALESCE(#{dong_code}, null)
+			)
+	</insert>
+	
+	<!-- 암호화된 차량 위치 로그 등록 -->
+	<insert id="addMotorLocation">
+		INSERT INTO 
+			ssp_log.motor_location (
+				car_number 
+				, latitude 
+				, longitude 
+				, insert_date 
+			)
+			VALUES (
+				#{car_number}
+				, #{encrypt_latitude}
+				, #{encrypt_longitude}
+				, now()
+			)
+	</insert>
+	
+	<!-- 차량 위치 업데이트 -->
+	<update id="modifyMotor">
+		UPDATE 
+			public.ssp_motor 
+		SET 
+			update_date = now()
+			, cpoint = POINT(#{latitude}::DOUBLE PRECISION, #{longitude}::DOUBLE PRECISION)
+			, si_code = #{si_code}
+			, gu_code = #{gu_code}
+			, dong_code = #{dong_code}
+		WHERE 
+			car_number = #{car_number}
+	</update>
+	
+	<!-- CPP, CPM 광고 -->
+	<select id="getDspSgManager" resultType="HashMap">
+		SELECT
+			id sg_id
+			, campaign_id
+			, name
+			, status
+			, ssp_product_id product_id
+			, exposure_time
+			, display_start_date
+			, display_end_date
+			, remain_exposure_count
+		FROM
+			public.dsp_sg_manager
+		WHERE 
+			id = #{sg_id}::bigint
+			<if test='product_id != null and product_id != ""'>
+				AND ssp_product_id = #{product_id}::bigint
+			</if>
+	</select>
+	
+	<!-- default, public 광고 -->
+	<select id="getSgService" resultType="HashMap">
+		SELECT
+			id sg_id
+			, CASE
+				WHEN ad_type = 'D' THEN 'D'
+				ELSE 'C' 
+			  END ad_type
+			, name
+			, status
+			, playtime exposure_time
+		FROM 
+			public.dsp_service_ad
+		WHERE 
+			id = #{sg_id}::bigint
+			<if test='ad_type != null and ad_type != ""'>
+				AND ad_type = #{ad_type}
+			</if>
+	</select>
+
+	<!-- CPM 광고가 노출 가능한지에 대한 정보 -->
+	<select id="getScheduleTableSg" resultType="HashMap">
+		SELECT
+			sts.id
+			, sts.sg_id
+			, sts.date_ymd 
+			, sts.year
+			, sts.month
+			, sts.day
+			, sts.max_count 
+			, sts.remain_count
+			, sts.excess_count  
+			, dsm.status 
+		FROM 
+			public.schedule_table_sg sts
+		JOIN public.dsp_sg_manager dsm 
+		ON sts.sg_id = dsm.id 
+		WHERE 
+			sts.sg_id = #{sg_id}::bigint
+			AND sts.date_ymd = #{schedule_date}::varchar 
+			<choose>
+				<when test='sg_kind != null and sg_kind == "AREA"'>
+					AND target_week_yn = 'N' 
+					AND target_area_yn = 'Y'
+				</when>
+				<when test='sg_kind != null and sg_kind == "TIME"'>
+					AND target_week_yn = 'Y' 
+					AND target_area_yn = 'N'
+				</when>
+				<when test='sg_kind != null and sg_kind == "CPM"'>
+					AND target_week_yn = 'N' 
+					AND target_area_yn = 'N'
+				</when>
+			</choose>
+	</select>
+	
+	<!-- 광고 집행 날짜의 스케쥴 정보 -->
+	<select id="getScheduleTable" resultType="HashMap">
+		SELECT 
+			id schedule_table_id
+			, product_id 
+			, ssp_member_id 
+			, schedule_id  
+		FROM
+			public.schedule_table 
+		WHERE 
+			date_ymd = #{schedule_date}::varchar 
+			AND product_id = #{product_id}::bigint 
+	</select>
+	
+	<!-- 스케쥴 슬롯 정보 -->
+	<select id="getScheduleTableSlotList" resultType="HashMap">
+		SELECT 
+			sts.id schedule_table_slot_id
+			, sts.slot_id
+			, sts.slot_type
+			, sts.slot_order
+			, ss.sort_info
+		FROM 
+			public.schedule_table_slot sts 
+		JOIN public.schedule_slot ss 
+		ON sts.slot_id = ss.id 
+		WHERE
+			schedule_table_id = #{schedule_table_id}::bigint
+		ORDER BY slot_order
+	</select>
+	
+	<!-- CPP 광고 정보 목록 -->
+	<select id="getScheduleTableBlock" resultType="HashMap">
+		SELECT
+			stb.id schedule_table_block_id
+			, stb.schedule_table_slot_id
+			, stb.send_order 
+			, stb.sg_kind 
+			, 0 exposure_limit 
+			, dsm.id sg_id
+			, dsm.name sg_name
+			, dsm.material_kind ad_kind
+			, dsm.exposure_time play_time
+			, dsm2.file_path
+			, dsm2.file_name 
+			, dsm2.file_size 
+			, dsm2.page_size_code
+		FROM 
+			public.schedule_table_block stb 
+		JOIN public.dsp_sg_manager dsm 
+		ON stb.sg_id = dsm.id AND stb.schedule_table_slot_id = #{schedule_table_slot_id}::bigint AND stb.sg_kind = 'P'
+		JOIN public.dsp_sg_material dsm2 
+		ON dsm.id = dsm2.sg_id 
+		WHERE
+			dsm2.page_size_code = #{page_size_code}
+	</select>
+	
+	<!-- BLOCK 슬롯의 지역 옵션에서 같은 구 조회 -->
+	<select id="getSameAreaList" resultType="HashMap">
+		SELECT
+			dsa.area_id
+			, ac.gu_code 
+			, ac.gu_name 
+		FROM 
+			public.schedule_table_block stb 
+		JOIN public.dsp_sg_manager dsm 
+		ON stb.sg_id = dsm.id AND stb.schedule_table_slot_id = #{schedule_table_slot_id}::bigint AND stb.sg_kind = 'A'
+		JOIN public.dsp_sg_area dsa 
+		ON dsm.id = dsa.sg_id 
+		JOIN public.area_code ac 
+		ON dsa.area_id = ac.id
+		group by area_id, gu_code, gu_name
+	</select>
+	
+	<!-- Block타입의 지역 옵션 광고 목록 -->
+	<select id="getScheduleTableBlockTypeAreaList" resultType="HashMap">
+		SELECT
+			stb.id schedule_table_block_id
+			, stb.schedule_table_slot_id
+			, stb.send_order 
+			, stb.sg_kind 
+			, sts.remain_count exposure_limit 
+			, dsm.id sg_id
+			, dsm.name sg_name
+			, dsm.material_kind ad_kind
+			, dsa.area_id
+			, ac.gu_code 
+			, ac.gu_name 
+			, dsm.exposure_time play_time
+			, dsm2.file_path
+			, dsm2.file_name 
+			, dsm2.file_size 
+			, dsm2.page_size_code 
+		FROM 
+			public.schedule_table_block stb 
+		JOIN public.schedule_table_sg sts 
+		ON stb.sg_id = sts.sg_id AND stb.schedule_table_slot_id = #{schedule_table_slot_id}::bigint AND sts.date_ymd = #{schedule_date} AND stb.sg_kind = 'A'
+		JOIN public.dsp_sg_manager dsm 
+		ON stb.sg_id = dsm.id 
+		JOIN public.dsp_sg_area dsa 
+		ON dsm.id = dsa.sg_id 
+		JOIN public.area_code ac 
+		ON dsa.area_id = ac.id
+		JOIN public.dsp_sg_material dsm2
+		ON stb.sg_id = dsm2.sg_id 
+		WHERE
+			dsm2.page_size_code = #{page_size_code}
+		ORDER BY stb.id, stb.send_order 
+	</select>
+	
+	<!-- Block타입의 시간 옵션 광고 목록 -->
+	<select id="getScheduleTableBlockTypeWeekList" resultType="HashMap">
+		SELECT
+			stb.id schedule_table_block_id
+			, stb.schedule_table_slot_id
+			, stb.send_order 
+			, stb.sg_kind 
+			, sts.remain_count exposure_limit 
+			, dsm.id sg_id
+			, dsm.name sg_name
+			, dsm.material_kind ad_kind
+			, dsm.exposure_time play_time
+			, dsm2.file_path
+			, dsm2.file_name
+			, dsm2.file_size
+			, dsm2.page_size_code  
+			, dsw.hour_00 
+			, dsw.hour_01
+			, dsw.hour_02
+			, dsw.hour_03
+			, dsw.hour_04
+			, dsw.hour_05
+			, dsw.hour_05
+			, dsw.hour_06
+			, dsw.hour_07
+			, dsw.hour_08
+			, dsw.hour_09
+			, dsw.hour_10
+			, dsw.hour_11
+			, dsw.hour_12
+			, dsw.hour_13
+			, dsw.hour_14
+			, dsw.hour_15
+			, dsw.hour_16
+			, dsw.hour_17
+			, dsw.hour_18
+			, dsw.hour_19
+			, dsw.hour_20
+			, dsw.hour_21
+			, dsw.hour_22
+			, dsw.hour_23
+		FROM 
+			public.schedule_table_block stb
+		JOIN public.schedule_table_sg sts 
+		ON stb.sg_id = sts.sg_id AND stb.schedule_table_slot_id = #{schedule_table_slot_id} AND sts.date_ymd = #{schedule_date} AND stb.sg_kind = 'T'
+		JOIN public.dsp_sg_manager dsm 
+		ON stb.sg_id = dsm.id 
+		JOIN public.dsp_sg_week dsw 
+		ON dsm.id = dsw.sg_id AND dsw.week_code = (SELECT CASE WHEN EXTRACT(ISODOW FROM #{schedule_date}::timestamptz) = 7 THEN 0 ELSE EXTRACT(ISODOW FROM #{schedule_date}::timestamptz) END dow)
+		JOIN public.dsp_sg_material dsm2
+		ON stb.sg_id = dsm2.sg_id 
+		WHERE
+			dsm2.page_size_code = #{page_size_code}
+		ORDER BY stb.id, stb.send_order 
+	</select>
+	
+	<!-- Block타입의 기본 옵션 광고 목록 -->
+	<select id="getScheduleTableBlockTypeDefaultList" resultType="HashMap">
+		SELECT
+			stb.id schedule_table_block_id
+			, stb.schedule_table_slot_id
+			, stb.send_order 
+			, stb.sg_kind 
+			, 0 exposure_limit 
+			, dsa.id sg_id
+			, dsa.name sg_name
+			, 'VIDEO' ad_kind
+			, dsa.playtime play_time
+			, dsa.file_path 
+			, dsa.file_name 
+			, dsa.file_size 
+			, dsa.page_size_code 
+		FROM 
+			public.schedule_table_block stb 
+		JOIN public.dsp_service_ad dsa 
+		ON stb.sg_id = dsa.id AND stb.schedule_table_slot_id = #{schedule_table_slot_id} AND stb.sg_kind = 'D' AND dsa.ad_type = 'D'
+		WHERE
+			dsa.page_size_code = #{page_size_code}
+		ORDER BY stb.id, stb.send_order 
+	</select>
+	
+	<!-- Block타입의 공익 옵션 광고 목록 -->
+	<select id="getScheduleTableBlockTypePublicList" resultType="HashMap">
+		SELECT
+			stb.id schedule_table_block_id
+			, stb.schedule_table_slot_id
+			, stb.send_order 
+			, stb.sg_kind 
+			, 0 exposure_limit 
+			, dsa.id sg_id
+			, dsa.name sg_name
+			, 'VIDEO' ad_kind
+			, dsa.playtime play_time
+			, dsa.file_path 
+			, dsa.file_name 
+			, dsa.file_size
+			, dsa.page_size_code 
+		FROM 
+			public.schedule_table_block stb 
+		JOIN public.dsp_service_ad dsa 
+		ON stb.sg_id = dsa.id AND stb.schedule_table_slot_id = #{schedule_table_slot_id}::bigint AND stb.sg_kind = 'C' AND dsa.ad_type = 'P'
+		WHERE
+			dsa.page_size_code = #{page_size_code}
+		ORDER BY stb.id, stb.send_order 
+	</select>
+	
+	<!-- Block타입의 CPM 옵션 기본 목록 -->
+	<select id="getScheduleTableBlockTypeCpmList" resultType="HashMap">
+		SELECT
+			stb.id schedule_table_block_id
+			, stb.schedule_table_slot_id
+			, stb.send_order 
+			, stb.sg_kind 
+			, sts.remain_count exposure_limit 
+			, dsm.id sg_id
+			, dsm.name sg_name
+			, dsm.material_kind ad_kind
+			, dsm.exposure_time play_time
+			, dsm2.file_path
+			, dsm2.file_name 
+			, dsm2.file_size 
+			, dsm2.page_size_code 
+		FROM 
+			public.schedule_table_block stb 
+		JOIN public.schedule_table_sg sts 
+		ON stb.sg_id = sts.sg_id AND stb.schedule_table_slot_id = #{schedule_table_slot_id}::bigint AND sts.date_ymd = #{schedule_date} AND stb.sg_kind = 'M'
+		JOIN public.dsp_sg_manager dsm 
+		ON stb.sg_id = dsm.id AND dsm.target_area_yn = 'N' AND target_week_yn = 'N'
+		JOIN public.dsp_sg_material dsm2
+		ON stb.sg_id = dsm2.sg_id 
+		WHERE
+			dsm2.page_size_code = #{page_size_code}
+		ORDER BY stb.id, stb.send_order 
+	</select>
+	
+	<select id="hasScheduleSendLog" resultType="Integer">
+		SELECT 
+			count(*) 
+		FROM 
+			traffic.schedule_send_log
+		WHERE
+			device = #{device_number}
+			AND schedule_ymd = #{schedule_date}
+			AND status = #{send_status}
+	</select>
+	
+	<!-- 같은 스케쥴을 요청했을 때 기존 데이트를 덮어쓰기 -->
+	<update id="modifySameScheduleSendLog">
+		UPDATE 
+			traffic.schedule_send_log 
+		SET 
+			json_data = #{schedule_json}::jsonb
+			, insert_date = now()
+		WHERE 
+			device = #{device_number}
+			AND schedule_ymd = #{schedule_date}
+			AND status = #{send_status}
+	</update>
+	
+	<!-- 디바이스로 스케줄을 전송했을 때 저장하는 로그 -->
+	<insert id="addScheduleSendLog">
+		INSERT INTO 
+			traffic.schedule_send_log (
+				device
+				, schedule_ymd 
+				, json_data 
+				, insert_date 
+				, status 
+			)
+			VALUES (
+				#{device_number}
+				, #{schedule_date}
+				, COALESCE(#{schedule_json}::jsonb, null)
+				, now()
+				, #{send_status}
+			)
+	</insert>
+	
+	<!-- 다비아스의 광고 소재 다운로드 확인 후 스케줄 전송 로그 업데이트 -->
+	<update id="modifyScheduleSendLog">
+		UPDATE 
+			traffic.schedule_send_log 
+		SET 
+			status = #{send_status}
+			, send_date = now()
+		WHERE 
+			device = #{device_number}
+			AND schedule_ymd = #{schedule_date}
+			AND status = 'R'
+	</update>
+	
+	<!-- 광고 노출 시 쌓이는 로그 저장 -->
+	<insert id="addSgEventTraffic">
+		INSERT INTO
+			traffic.ad_event_traffic (
+				insert_date
+				, event_date
+				, cip
+				, sg_id
+				, slot_id
+				, sg_kind
+				, api_key
+				, refer_url
+				, device
+				, event_kind
+				, status
+				, cpoint
+				, event_year
+				, event_month
+				, event_day
+				, event_hour
+				, event_min
+			)
+			VALUES (
+				now()
+				, #{event_date}::timestamptz
+				, #{remote_ip}::inet
+				, #{sg_id}::bigint
+				, #{slot_id}::bigint
+				, #{sg_kind}
+				, #{api_key}
+				, #{referer}
+				, #{device_number}
+				, #{event_kind}
+				, #{status}
+				, #{cpoint}::point
+				, TO_CHAR(#{event_date}::timestamptz, 'YYYY')
+				, TO_CHAR(#{event_date}::timestamptz, 'MM')
+				, TO_CHAR(#{event_date}::timestamptz, 'DD')
+				, TO_CHAR(#{event_date}::timestamptz, 'HH24')
+				, TO_CHAR(#{event_date}::timestamptz, 'MI')
+			)
+	</insert>
+	
+	<!-- 삭제할 6개월 전 motor location 개수 -->
+	<select id="getRemoveMotorLocationCnt" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM
+			ssp_log.motor_location
+		WHERE
+			TO_CHAR(insert_date, 'YYYY-MM-DD') <![CDATA[  <=  ]]> TO_CHAR(NOW() - interval '6 month', 'YYYY-MM-DD')
+	</select>
+	
+	<!-- 6개월 전 motor location 삭제 -->
+	<delete id="removeMotorLocation">
+		DELETE FROM
+			ssp_log.motor_location
+		WHERE
+			TO_CHAR(insert_date, 'YYYY-MM-DD') <![CDATA[  <=  ]]> TO_CHAR(NOW() - interval '6 month', 'YYYY-MM-DD')
+	</delete>
+	
+</mapper> 
