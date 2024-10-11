@@ -1,3 +1,3 @@
-# moca_web
+# moca_api
 
-mocafelab  웹 사이트용입니다.
+mocafelab  api 사이트입니다.
