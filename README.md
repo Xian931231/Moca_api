@@ -1,3 +1,9 @@
 # moca_api
 
-mocafelab  api 사이트입니다.
+mocafelab api 사이트용입니다.
+
+project : spring boot
+
+Gradle Version : gradle-6.8.3
+
+Java Version : openjdk11
